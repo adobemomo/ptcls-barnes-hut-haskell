@@ -1,5 +1,6 @@
 module DataStructs where
 
+import Control.DeepSeq
 import Debug.Trace
 
 --------------------------------------------------------------------------------
@@ -30,6 +31,9 @@ instance Num Vec where
   signum (Vec a b) = Vec (signum a) (signum b)
   fromInteger a = Vec (fromInteger a :: Double) (fromInteger a :: Double)
 
+instance NFData Vec where
+  rnf (Vec a b) = rnf a `deepseq` rnf b
+
 (*.) :: Vec -> Double -> Vec
 (Vec x y) *. n = Vec (x * n) (y * n)
 
@@ -45,6 +49,9 @@ data Particle = Particle {coord :: Vec, v :: Vec, m :: Double} deriving (Eq)
 instance Show Particle where
   show (Particle c v m) = "[P] pos=" ++ show c ++ ", v=" ++ show v ++ ", m=" ++ show m
 
+instance NFData Particle where
+  rnf (Particle c v m) = rnf c `deepseq` rnf v `deepseq` rnf m
+
 defaultParticle = Particle zeroVec zeroVec 1
 
 --------------------------------------------------------------------------------
@@ -56,6 +63,9 @@ data Squard = Squard {center :: Vec, topleft :: Vec, bottomright :: Vec, mass ::
 instance Show Squard where
   show (Squard c tl br m) = "[S] center=(" ++ show (x c) ++ "," ++ show (y c) ++ "), size=" ++ show (abs (distX tl br)) ++ ", mass=" ++ show m
 
+instance NFData Squard where
+  rnf (Squard c tl br m) = rnf c `deepseq` rnf tl `deepseq` rnf br `deepseq` rnf m
+
 --------------------------------------------------------------------------------
 ----------Tree------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -64,6 +74,11 @@ data Tree
   = Tree {subtree1 :: Tree, subtree2 :: Tree, subtree3 :: Tree, subtree4 :: Tree, squard :: Squard}
   | Leaf {particle :: Maybe Particle, squard :: Squard}
   deriving (Eq)
+
+instance NFData Tree where
+  rnf (Tree a b c d e) = rnf a `deepseq` rnf b `deepseq` rnf c `deepseq` rnf d `deepseq` rnf e
+  rnf (Leaf (Just a) b) = rnf a `deepseq` rnf b
+  rnf (Leaf Nothing b) = rnf b
 
 mapTree :: (Tree -> a) -> Tree -> [a]
 mapTree f (Tree a b c d _) = [f a, f b, f c, f d]

@@ -1,5 +1,6 @@
 module BarnesHut where
 
+import Control.Parallel.Strategies (rdeepseq, rpar, rparWith, rseq, runEval)
 import DataStructs
 import Debug.Trace
 
@@ -17,6 +18,20 @@ toList :: Tree -> [Particle]
 toList (Leaf Nothing _) = []
 toList (Leaf (Just p) _) = [p]
 toList (Tree t1 t2 t3 t4 _) = toList t1 ++ toList t2 ++ toList t3 ++ toList t4
+
+toListPar :: Tree -> [Particle]
+toListPar (Leaf Nothing _) = []
+toListPar (Leaf (Just p) _) = [p]
+toListPar (Tree t1 t2 t3 t4 _) = runEval $ do
+  t1' <- rpar $ toListPar t1
+  t2' <- rpar $ toListPar t2
+  t3' <- rpar $ toListPar t3
+  t4' <- rpar $ toListPar t4
+  rseq t1'
+  rseq t2'
+  rseq t3'
+  rseq t4'
+  return $ t1' ++ t2' ++ t3' ++ t4'
 
 -- is particle in squard
 isInSquard :: Particle -> Squard -> Bool
@@ -53,13 +68,13 @@ acceleration p1 p2 g = ntForce p1 p2 g /. m p1
 
 -- compute delta v of particle2 on  particle1 dv=a*dt
 deltaV :: Particle -> Particle -> Double -> Double -> Vec
-deltaV p1 p2 g dt | trace ("deltaV " ++ show p1 ++ " " ++ show p2 ++ " " ++ show (acceleration p1 p2 g *. dt)) False = undefined
+-- deltaV p1 p2 g dt | trace ("deltaV " ++ show p1 ++ " " ++ show p2 ++ " " ++ show (acceleration p1 p2 g *. dt)) False = undefined
 deltaV p1 p2 g dt = acceleration p1 p2 g *. dt
 
 -- update velocity of particle based on tree
 updateV :: Particle -> Tree -> Double -> Double -> Particle
-updateV p1 tree@(Tree _ _ _ _ s) g dt | trace ("theta=" ++ show (abs (distX (topleft s) (bottomright s)) / (dist (coord p1) (center s))) ++ " isC=" ++ show (abs ((distX (topleft s) (bottomright s)) / (dist (coord p1) (center s))) < thetaThreshold) ++ " p1.coord=" ++ show (coord p1) ++ " p1.v=" ++ show (v p1) ++ " tree.center=" ++ show (center s)) False = undefined
-updateV p1 (Leaf (Just p2) _) g dt | trace ("p1==p2" ++ show (coord p1 == coord p2) ++ "p1.coord=" ++ show (coord p1) ++ " p2.coord" ++ show (coord p2) ++ " p1.v=" ++ show (v p1) ++ " dv=" ++ show (deltaV p1 p2 g dt)) False = undefined
+-- updateV p1 tree@(Tree _ _ _ _ s) g dt | trace ("theta=" ++ show (abs (distX (topleft s) (bottomright s)) / (dist (coord p1) (center s))) ++ " isC=" ++ show (abs ((distX (topleft s) (bottomright s)) / (dist (coord p1) (center s))) < thetaThreshold) ++ " p1.coord=" ++ show (coord p1) ++ " p1.v=" ++ show (v p1) ++ " tree.center=" ++ show (center s)) False = undefined
+-- updateV p1 (Leaf (Just p2) _) g dt | trace ("p1==p2" ++ show (coord p1 == coord p2) ++ "p1.coord=" ++ show (coord p1) ++ " p2.coord" ++ show (coord p2) ++ " p1.v=" ++ show (v p1) ++ " dv=" ++ show (deltaV p1 p2 g dt)) False = undefined
 updateV p (Leaf Nothing _) _ _ = p
 updateV p1 (Leaf (Just p2) s) g dt
   | coord p1 == coord p2 = p1
@@ -82,6 +97,18 @@ updateP p dt = p {coord = coord p + v p *. dt}
 updateParticle :: Tree -> Double -> Double -> Particle -> Particle
 updateParticle tree g dt p = updateP (updateV p tree g dt) dt
 
+updateParticlePar :: Tree -> Double -> Double -> Particle -> Particle
+updateParticlePar (Tree t1 t2 t3 t4 _) g dt p = runEval $ do
+  p1' <- rpar $ updateP (updateV p t1 g dt) dt
+  p2' <- rpar $ updateP (updateV p t2 g dt) dt
+  p3' <- rpar $ updateP (updateV p t3 g dt) dt
+  p4' <- rpar $ updateP (updateV p t4 g dt) dt
+  rseq p1'
+  rseq p2'
+  rseq p3'
+  rseq p4'
+  return p {coord = coord p1' + coord p2' + coord p3' + coord p4' - 3 * (coord p), v = v p1' + v p2' + v p3' + v p4' - 3 * (v p)}
+
 -- calculate squard for tree
 calcSquard :: Tree -> Tree
 calcSquard (Leaf Nothing s) = Leaf Nothing s
@@ -94,6 +121,27 @@ calcSquard tree@(Tree t1 t2 t3 t4 s) = Tree t1' t2' t3' t4' s'
     newX = foldr (\t acc -> acc + getCenterX t * getMass t) 0 subtrees / totalMass
     newY = foldr (\t acc -> acc + getCenterY t * getMass t) 0 subtrees / totalMass
 
+calcSquardPar :: Tree -> Tree
+calcSquardPar (Leaf Nothing s) = Leaf Nothing s
+calcSquardPar (Leaf (Just p) s) = Leaf (Just p) s {center = coord p, mass = m p}
+calcSquardPar tree@(Tree t1 t2 t3 t4 s) = runEval $ do
+  t1' <- rpar $ calcSquardPar t1
+  t2' <- rpar $ calcSquardPar t2
+  t3' <- rpar $ calcSquardPar t3
+  t4' <- rpar $ calcSquardPar t4
+  rdeepseq t1'
+  rdeepseq t2'
+  rdeepseq t3'
+  rdeepseq t4'
+
+  totalMass <- rpar $ foldr (\t acc -> acc + getMass t) 0 [t1', t2', t3', t4']
+  rdeepseq totalMass
+  newX <- rpar $ foldr (\t acc -> acc + getCenterX t * getMass t) 0 [t1', t2', t3', t4'] / totalMass
+  newY <- rpar $ foldr (\t acc -> acc + getCenterY t * getMass t) 0 [t1', t2', t3', t4'] / totalMass
+  rdeepseq newX
+  rdeepseq newY
+  return $ Tree t1' t2' t3' t4' s {center = Vec newX newY, mass = totalMass}
+
 --------------------------------------------------------------------------------
 ----------BH Algo---------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -104,3 +152,9 @@ bhstep tl br g dt particles = particles'
   where
     tree = calcSquard $ fromList particles tl br
     particles' = map (updateParticle tree g dt) particles
+
+bhstepRpar :: Vec -> Vec -> Double -> Double -> [Particle] -> [Particle]
+bhstepRpar tl br g dt particles = particles'
+  where
+    tree = calcSquardPar $ fromList particles tl br
+    particles' = map (updateParticlePar tree g dt) particles
