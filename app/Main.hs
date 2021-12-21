@@ -56,9 +56,21 @@ main :: IO ()
 main = do
   --   print $ loop iter bhstep particles tl br g dt
   -- let solutions = take 100 $ iterate (bhstep tl br g dt) ps
-  let solutions = take 100 $ iterate (bhstepRpar tl br g dt) ps
-  -- print solutions
-  print $ (fmap . fmap) coord solutions
+  -- let solutions = take 100 $ iterate (bhstepRpar tl br g dt) ps
+  loop 0 ps
+  where
+    loop :: Int -> [Particle] -> IO ()
+    loop 100 particles = do
+      print particles
+      return ()
+    loop n particles = do
+      loop (n + 1) $ bhstepParListChunk tl br g dt particles
+      -- loop (n + 1) $ bhstepRpar tl br g dt particles
+      return ()
+
+-- print solutions
+
+-- print $ tail $ (fmap . fmap) coord solutions
 
 -- where
 --   iter = 5

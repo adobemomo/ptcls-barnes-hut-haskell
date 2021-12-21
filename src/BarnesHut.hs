@@ -1,6 +1,7 @@
 module BarnesHut where
 
-import Control.Parallel.Strategies (rdeepseq, rpar, rparWith, rseq, runEval)
+import Control.Parallel.Strategies (parBuffer, parListChunk, rdeepseq, rpar, rparWith, rseq, runEval, using)
+-- import Data.List.Split (chunksOf)
 import DataStructs
 import Debug.Trace
 
@@ -14,24 +15,24 @@ fromList :: [Particle] -> Vec -> Vec -> Tree
 fromList [] tl br = emptyTree tl br
 fromList (p : ps) tl br = calcSquard $ foldl (flip addParticle) (fromList ps tl br) [p]
 
-toList :: Tree -> [Particle]
-toList (Leaf Nothing _) = []
-toList (Leaf (Just p) _) = [p]
-toList (Tree t1 t2 t3 t4 _) = toList t1 ++ toList t2 ++ toList t3 ++ toList t4
+-- toList :: Tree -> [Particle]
+-- toList (Leaf Nothing _) = []
+-- toList (Leaf (Just p) _) = [p]
+-- toList (Tree t1 t2 t3 t4 _) = toList t1 ++ toList t2 ++ toList t3 ++ toList t4
 
-toListPar :: Tree -> [Particle]
-toListPar (Leaf Nothing _) = []
-toListPar (Leaf (Just p) _) = [p]
-toListPar (Tree t1 t2 t3 t4 _) = runEval $ do
-  t1' <- rpar $ toListPar t1
-  t2' <- rpar $ toListPar t2
-  t3' <- rpar $ toListPar t3
-  t4' <- rpar $ toListPar t4
-  rseq t1'
-  rseq t2'
-  rseq t3'
-  rseq t4'
-  return $ t1' ++ t2' ++ t3' ++ t4'
+-- toListPar :: Tree -> [Particle]
+-- toListPar (Leaf Nothing _) = []
+-- toListPar (Leaf (Just p) _) = [p]
+-- toListPar (Tree t1 t2 t3 t4 _) = runEval $ do
+--   t1' <- rpar $ toListPar t1
+--   t2' <- rpar $ toListPar t2
+--   t3' <- rpar $ toListPar t3
+--   t4' <- rpar $ toListPar t4
+--   rseq t1'
+--   rseq t2'
+--   rseq t3'
+--   rseq t4'
+--   return $ t1' ++ t2' ++ t3' ++ t4'
 
 -- is particle in squard
 isInSquard :: Particle -> Squard -> Bool
@@ -103,10 +104,10 @@ updateParticlePar (Tree t1 t2 t3 t4 _) g dt p = runEval $ do
   p2' <- rpar $ updateP (updateV p t2 g dt) dt
   p3' <- rpar $ updateP (updateV p t3 g dt) dt
   p4' <- rpar $ updateP (updateV p t4 g dt) dt
-  rseq p1'
-  rseq p2'
-  rseq p3'
-  rseq p4'
+  rdeepseq p1'
+  rdeepseq p2'
+  rdeepseq p3'
+  rdeepseq p4'
   return p {coord = coord p1' + coord p2' + coord p3' + coord p4' - 3 * (coord p), v = v p1' + v p2' + v p3' + v p4' - 3 * (v p)}
 
 -- calculate squard for tree
@@ -157,4 +158,10 @@ bhstepRpar :: Vec -> Vec -> Double -> Double -> [Particle] -> [Particle]
 bhstepRpar tl br g dt particles = particles'
   where
     tree = calcSquardPar $ fromList particles tl br
-    particles' = map (updateParticlePar tree g dt) particles
+    particles' = map (updateParticle tree g dt) particles `using` parBuffer 60 rdeepseq
+
+bhstepParListChunk :: Vec -> Vec -> Double -> Double -> [Particle] -> [Particle]
+bhstepParListChunk tl br g dt particles = particles'
+  where
+    tree = calcSquard $ fromList particles tl br
+    particles' = map (updateParticle tree g dt) particles `using` parListChunk 20 rdeepseq
