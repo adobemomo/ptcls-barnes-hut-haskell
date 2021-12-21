@@ -13,7 +13,7 @@ thetaThreshold = 1
 --------------------------------------------------------------------------------
 fromList :: [Particle] -> Vec -> Vec -> Tree
 fromList [] tl br = emptyTree tl br
-fromList (p : ps) tl br = calcSquard $ foldl (flip addParticle) (fromList ps tl br) [p]
+fromList (p : ps) tl br = foldl (flip addParticle) (fromList ps tl br) [p]
 
 -- toList :: Tree -> [Particle]
 -- toList (Leaf Nothing _) = []
