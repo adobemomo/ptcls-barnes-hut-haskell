@@ -12,31 +12,31 @@ p = defaultParticle
 
 -- pblack = p {m = 10000000000000000000000000}
 
--- p1 = p {coord = Vec 1 2, v = Vec 0.5 0.5, m = 3000000000}
+p1 = p {coord = Vec 1 2, v = Vec 0.5 0.5, m = 3000000000}
 
--- p2 = p {coord = Vec (-3) (-5), v = Vec 0.5 0.5, m = 9000000000}
+p2 = p {coord = Vec (-3) (-5), v = Vec 0.5 0.5, m = 9000000000}
 
--- p3 = p {coord = Vec 2 (-2), v = Vec 0.5 0.5, m = 9000000000}
+p3 = p {coord = Vec 2 (-2), v = Vec 0.5 0.5, m = 9000000000}
 
--- p4 = p {coord = Vec 4 (-4), v = Vec 0.5 0.5, m = 1000000000}
+p4 = p {coord = Vec 4 (-4), v = Vec 0.5 0.5, m = 1000000000}
 
--- p5 = p {coord = Vec (-1) 2.6, v = zeroVec, m = 1000000000}
+p5 = p {coord = Vec (-1) 2.6, v = zeroVec, m = 1000000000}
 
--- p6 = p {coord = Vec (-2) 4.5, v = zeroVec, m = 1000000000}
+p6 = p {coord = Vec (-2) 4.5, v = zeroVec, m = 1000000000}
 
 -- -- ps = [pblack, p1, p2, p3, p4, p5, p6]
--- pa = p {coord = Vec 1 0, v = Vec 0 0.1, m = 1000000000}
+pa = p {coord = Vec 1 0, v = Vec 0 0.1, m = 1000000000}
 
--- pb = p {coord = Vec (-1) 0, v = Vec 0 (-0.1), m = 1000000000}
+pb = p {coord = Vec (-1) 0, v = Vec 0 (-0.1), m = 1000000000}
 
 -- ps = [pa, pb, p1, p2, p3, p4, p5, p6]
 
 -- ps = [(x, y)]
 ps = [p {coord = Vec x y, v = zeroVec, m = 1000000000} | x <- [-10 .. 10], y <- [-10 .. 10]]
 
-tl = Vec (-10000) (-10000)
+tl = Vec (-10) (-10)
 
-br = Vec 10000 10000
+br = Vec 10 10
 
 g = 6.67e-11
 
@@ -56,11 +56,12 @@ main :: IO ()
 main = do
   --   print $ loop iter bhstep particles tl br g dt
   -- let solutions = take 100 $ iterate (bhstep tl br g dt) ps
+
   -- let solutions = take 100 $ iterate (bhstepRpar tl br g dt) ps
   loop 0 ps
   where
     loop :: Int -> [Particle] -> IO ()
-    loop 100 particles = do
+    loop 1000 particles = do
       print particles
       return ()
     loop n particles = do
@@ -70,7 +71,7 @@ main = do
 
 -- print solutions
 
--- print $ tail $ (fmap . fmap) coord solutions
+-- print $ (fmap . fmap) coord solutions
 
 -- where
 --   iter = 5

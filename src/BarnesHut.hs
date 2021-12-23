@@ -158,7 +158,7 @@ bhstepRpar :: Vec -> Vec -> Double -> Double -> [Particle] -> [Particle]
 bhstepRpar tl br g dt particles = particles'
   where
     tree = calcSquardPar $ fromList particles tl br
-    particles' = map (updateParticle tree g dt) particles `using` parBuffer 60 rdeepseq
+    particles' = map (updateParticlePar tree g dt) particles
 
 bhstepParListChunk :: Vec -> Vec -> Double -> Double -> [Particle] -> [Particle]
 bhstepParListChunk tl br g dt particles = particles'
